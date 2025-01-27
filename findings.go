@@ -69,15 +69,21 @@ func examine(path string) (*Findings, error) {
 				findings.mut.Unlock()
 			}()
 			// Find and store Git info
-			go func() {
-				git, err := NewGit(head) // pass in the path to the .git directory
-				if err != nil {
-					return // don't store the git struct in the findings
-				}
-				findings.mut.Lock()
-				findings.git = git
-				findings.mut.Unlock()
-			}()
+			foundGit := false
+			findings.mut.Lock()
+			foundGit = findings.git != nil
+			findings.mut.Unlock()
+			if !foundGit {
+				go func() {
+					git, err := NewGit(head) // pass in the path to the .git directory
+					if err != nil {
+						return // don't store the git struct in the findings
+					}
+					findings.mut.Lock()
+					findings.git = git
+					findings.mut.Unlock()
+				}()
+			}
 			return nil // skip
 		}
 		// Store a regular file
