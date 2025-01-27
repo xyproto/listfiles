@@ -133,7 +133,7 @@ func main() {
 		// ignore err here because we want to break the loop early
 		_ = cIter.ForEach(func(c *object.Commit) error {
 			logEntryAsString := strings.TrimRightFunc(c.String(), unicode.IsSpace)
-			o.Printf("<yellow>%s</yellow>\n", logEntryAsString)
+			o.Println(GitHighlightLines(strings.Split(logEntryAsString, "\n")))
 			//return nil // continue
 			return errors.New("stop") // break
 		})
