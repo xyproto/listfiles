@@ -2,65 +2,114 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"os"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/xyproto/binary"
+	"github.com/xyproto/mode"
 	"github.com/xyproto/textoutput"
 )
 
 func main() {
+
+	const (
+		path               = "."
+		respectIgnoreFiles = true // Ignore filenames mentioned in .ignore or .gitignore
+		respectHiddenFiles = true // Ignore filenames starting with "."
+		maxDepth           = 1
+	)
+
 	o := textoutput.New()
 
-	const path = "."
-
-	// Examine the given path
-	fmt.Printf("Examining %s...", path)
-	const respectIgnoreFiles = false
-	findings, err := examine(path, respectIgnoreFiles)
+	findings, err := Examine(path, respectIgnoreFiles, respectHiddenFiles, maxDepth)
 	if err != nil {
-		fmt.Println(" FAIL")
-		log.Fatalln(err)
+		o.ErrExit("FAIL:" + err.Error())
 	}
-	fmt.Println(" OK")
+
+	var (
+		atLeastOneRegularFile bool
+		dirList               []string
+	)
 
 	// Regular files
-	fmt.Println("Regular files:")
 	for _, fn := range findings.regularFiles {
-		isBinary := false
+		var (
+			isBinary  bool
+			isDir     bool
+			m         mode.Mode
+			modified  time.Time
+			foundTime bool
+		)
+		if fInfo, ok := findings.infoMap[fn]; ok {
+			foundTime = true
+			modified = fInfo.ModTime()
+			isDir = fInfo.IsDir()
+			if !isDir {
+				atLeastOneRegularFile = true
+			}
+		}
+		m = mode.Detect(fn)
 		if data, err := os.ReadFile(fn); err == nil { // success
 			isBinary = binary.Data(data)
 		}
 		if isBinary {
-			o.Printf("<lightred>%s</lightred>\n", fn)
+			o.Printf("<lightred>%s</lightred> [<red>binary</red>]", fn)
+		} else if isDir {
+			dirList = append(dirList, fn)
+		} else if m == mode.Blank {
+			o.Printf("<white>%s</white>", fn)
+		} else if m == mode.Markdown || m == mode.Text || m == mode.ReStructured || m == mode.SCDoc || m == mode.ASCIIDoc {
+			o.Printf("<magenta>%s</magenta>", fn)
 		} else {
-			o.Printf("<lightgreen>%s</lightgreen>\n", fn)
+			o.Printf("<lightgreen>%s</lightgreen>", fn)
+		}
+		if !isDir {
+			if m != mode.Blank && !isBinary {
+				o.Printf(" [<cyan>%s</cyan>]", m)
+			}
+			if foundTime {
+				elapsed := time.Since(modified)
+				if elapsed < time.Hour*24 {
+					o.Printf(" <lightyellow>%s ago @</lightyellow><yellow>%s</lightblue>", formatElapsed(elapsed), modified.Format("15:04:05"))
+				} else {
+					o.Printf(" <white>%s</white>, <lightblue>%s</lightblue>", modified.Format("2006-01-02"), modified.Format("15:04:05"))
+				}
+			}
+			o.Println()
 		}
 	}
-	o.Println()
+	if atLeastOneRegularFile {
+		o.Println()
+	}
+
+	// Output directories
+
+	for _, dirName := range dirList {
+		o.Printf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName)
+	}
+	if len(dirList) > 0 {
+		o.Println()
+	}
 
 	// Ignored files
 	ignoredLen := len(findings.ignoredFiles)
 	if ignoredLen == 1 {
-		fmt.Printf("There is also %d ignored file.\n", ignoredLen)
-	} else {
-		fmt.Printf("There are also %d ignored files.\n", ignoredLen)
+		o.Println("<white>There is also one ignored file.</white>\n")
+	} else if ignoredLen > 1 {
+		o.Printf("</white>There are also %d ignored files.</white>\n\n", ignoredLen)
 	}
-	o.Println()
 
 	// Git URL
 	if findings.git != nil {
 		o.Printf("<white>Git URL:</white> <red>%s</red>\n", findings.git.URL)
 	}
-	o.Println()
 
 	// Last entry in the git log
 	if findings.git != nil {
-		fmt.Printf("Retrieving the git log...")
 		//r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{URL: findings.git.URL})
 		r, err := git.PlainOpen(path)
 		if err != nil {
@@ -79,11 +128,12 @@ func main() {
 			o.ErrExit("FAIL " + err.Error())
 		}
 
-		fmt.Println()
+		o.Println()
 
 		// ignore err here because we want to break the loop early
 		_ = cIter.ForEach(func(c *object.Commit) error {
-			o.Printf("<yellow>%s</yellow>\n", c)
+			logEntryAsString := strings.TrimRightFunc(c.String(), unicode.IsSpace)
+			o.Printf("<yellow>%s</yellow>\n", logEntryAsString)
 			//return nil // continue
 			return errors.New("stop") // break
 		})
@@ -92,8 +142,5 @@ func main() {
 		//o.ErrExit("FILA " + err.Error())
 		//log.Fatalln(err)
 		//}
-		fmt.Println()
 	}
-
-	o.Println("<lightblue>Done.</lightblue>")
 }
