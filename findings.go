@@ -31,12 +31,15 @@ func SplitPath(path string) []string {
 	return strings.Split(path, string(filepath.Separator))
 }
 
-func examine(path string) (*Findings, error) {
+func examine(path string, respectIgnoreFiles bool) (*Findings, error) {
 	if !files.IsDir(path) {
 		return nil, fmt.Errorf("not a path: %s", path)
 	}
 
 	findings := NewFindings()
+
+	var ignoreMut sync.Mutex
+	var extraIgnoredFiles []string
 
 	walkFunc := func(path string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
@@ -86,6 +89,19 @@ func examine(path string) (*Findings, error) {
 			}
 			return nil // skip
 		}
+		if respectIgnoreFiles && (head == ".ignore" || head == ".gitignore") {
+			if extraIgnoredFilesData, err := os.ReadFile(head); err == nil { // success
+				lines := strings.Split(string(extraIgnoredFilesData), "\n")
+				for _, line := range lines {
+					trimmedLine := strings.TrimSpace(line)
+					if trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
+						ignoreMut.Lock()
+						extraIgnoredFiles = append(extraIgnoredFiles, trimmedLine)
+						ignoreMut.Unlock()
+					}
+				}
+			}
+		}
 		// Store a regular file
 		go func() {
 			findings.mut.Lock()
@@ -100,5 +116,27 @@ func examine(path string) (*Findings, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	hasS := func(xs []string, x string) (bool, int) {
+		for i, e := range xs {
+			if x == e {
+				return true, i
+			}
+		}
+		return false, -1
+	}
+
+	findings.mut.Lock()
+	for _, extraIgnoredFile := range extraIgnoredFiles {
+		if ok, index := hasS(findings.regularFiles, extraIgnoredFile); ok {
+			//fmt.Printf("\nIGNORING %s BECAUSE IT WAS IGNORED IN A . FILE!\n", extraIgnoredFile)
+			// delete extraIgnoredFile from findings.regular by appending two sliced string slices
+			findings.regularFiles = append(findings.regularFiles[:index], findings.regularFiles[index+1:]...)
+			// add extraIgnoredFile to findings.ignoredFiles
+			findings.ignoredFiles = append(findings.ignoredFiles, extraIgnoredFile)
+		}
+	}
+	findings.mut.Unlock()
+
 	return findings, nil
 }
