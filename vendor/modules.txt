@@ -173,6 +173,12 @@ github.com/xyproto/env/v2
 # github.com/xyproto/files v1.9.0
 ## explicit; go 1.19
 github.com/xyproto/files
+# github.com/xyproto/lookslikegoasm v1.0.0
+## explicit; go 1.23.2
+github.com/xyproto/lookslikegoasm
+# github.com/xyproto/mode v0.10.0
+## explicit; go 1.23.2
+github.com/xyproto/mode
 # github.com/xyproto/textoutput v1.17.1
 ## explicit; go 1.22.0
 github.com/xyproto/textoutput
