@@ -31,7 +31,7 @@ func SplitPath(path string) []string {
 	return strings.Split(path, string(filepath.Separator))
 }
 
-func examine(path string, respectIgnoreFiles bool) (*Findings, error) {
+func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth int) (*Findings, error) {
 	if !files.IsDir(path) {
 		return nil, fmt.Errorf("not a path: %s", path)
 	}
@@ -51,6 +51,8 @@ func examine(path string, respectIgnoreFiles bool) (*Findings, error) {
 		parts := SplitPath(path)
 		if len(parts) == 0 {
 			return fmt.Errorf("no path given: %s", path)
+		} else if len(parts) > maxDepth {
+			return nil // skip
 		}
 		head := strings.ToLower(parts[0])
 		if head == "vendor" {
@@ -102,6 +104,11 @@ func examine(path string, respectIgnoreFiles bool) (*Findings, error) {
 				}
 			}
 		}
+		if respectHiddenFiles && strings.HasPrefix(head, ".") {
+			ignoreMut.Lock()
+			extraIgnoredFiles = append(extraIgnoredFiles, head)
+			ignoreMut.Unlock()
+		}
 		// Store a regular file
 		go func() {
 			findings.mut.Lock()
@@ -129,7 +136,6 @@ func examine(path string, respectIgnoreFiles bool) (*Findings, error) {
 	findings.mut.Lock()
 	for _, extraIgnoredFile := range extraIgnoredFiles {
 		if ok, index := hasS(findings.regularFiles, extraIgnoredFile); ok {
-			//fmt.Printf("\nIGNORING %s BECAUSE IT WAS IGNORED IN A . FILE!\n", extraIgnoredFile)
 			// delete extraIgnoredFile from findings.regular by appending two sliced string slices
 			findings.regularFiles = append(findings.regularFiles[:index], findings.regularFiles[index+1:]...)
 			// add extraIgnoredFile to findings.ignoredFiles
