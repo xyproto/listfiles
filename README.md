@@ -7,4 +7,4 @@ The goal is to present the user with a palette of options for which action to pe
 This is a work in progress.
 
 * License: BSD-3
-* Version: 0.2.0
+* Version: 0.2.1
