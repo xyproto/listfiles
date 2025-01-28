@@ -143,6 +143,7 @@ func run(cfg *Config) error {
 		printMap       = make(map[time.Time]string)
 		needsSeparator bool
 		o              = textoutput.New()
+		pi             strings.Builder
 	)
 
 	findings, err := Examine(cfg.path, cfg.respectIgnored, cfg.respectHidden, cfg.maxDepth)
@@ -188,6 +189,13 @@ func run(cfg *Config) error {
 			cell3 := TimeString(ok, modified, "lightyellow", "lightblue", "white")
 			cell4 := sizeDescription
 			printMap[modified] = cell1 + ";" + cell2 + ";" + cell3 + ";" + cell4
+
+			// Project info, to be sent to Ollama
+			pi.WriteString(fn + ", ")
+			pi.WriteString(typeInfo.Description + ", ")
+			pi.WriteString(TimeString(ok, modified, "", "", "") + ", ")
+			pi.WriteString(sizeDescription)
+			pi.WriteString("\n")
 		}
 	}
 
@@ -203,9 +211,13 @@ func run(cfg *Config) error {
 			return keys[i].Before(keys[j])
 		})
 		// Print all the files, sorted by modification time
+		var sb strings.Builder
 		for _, k := range keys {
-			o.Println(printMap[k])
+			sb.WriteString(printMap[k])
+			sb.WriteString("\n")
 		}
+		o.Print(sb.String())
+
 		needsSeparator = true
 	}
 
@@ -274,9 +286,13 @@ func run(cfg *Config) error {
 
 				needsSeparator = true
 			}
-			//return nil // continue
-			return errors.New("break") // break
+			return errors.New("break") // return nil instead to continue priting git commit messages
 		})
+	}
+
+	// Ask Ollama what a sensible build command could be
+	if result, err := askOllama(&needsSeparator, pi.String()); err == nil { // success
+		fmt.Println(result)
 	}
 
 	return nil
