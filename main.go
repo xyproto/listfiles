@@ -44,18 +44,18 @@ func main() {
 	}
 
 	var (
-		dirList  []string
-		printed  bool
-		printMap = make(map[time.Time]string)
+		dirList        []string
+		printMap       = make(map[time.Time]string)
+		needsSeparator bool
 	)
 
-	// List regular files
+	// Collect info about regular files
 	for _, fn := range findings.regularFiles {
 		// If we don't have file info, just show the filename
 		fInfo, ok := findings.infoMap[fn]
 		if !ok {
 			o.Println(fmt.Sprintf("<white>%s</white>", fn))
-			printed = true
+			needsSeparator = true
 			continue
 		}
 
@@ -91,6 +91,7 @@ func main() {
 		}
 	}
 
+	// List files, if any
 	if l := len(printMap); l > 0 {
 		keys := make([]time.Time, l, l)
 		counter := 0
@@ -105,49 +106,45 @@ func main() {
 		for _, k := range keys {
 			o.Println(printMap[k])
 		}
-		// Separation line
-		o.Println()
+		needsSeparator = true
 	}
 
-	// List directories
-	sort.Strings(dirList)
-	for _, dirName := range dirList {
-		o.Printf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName)
-		printed = true
-	}
-
-	// Separation line
-	if printed {
-		o.Println()
-		printed = false
+	// List directories, if any
+	if len(dirList) > 0 {
+		if needsSeparator {
+			o.Println()
+			needsSeparator = false
+		}
+		sort.Strings(dirList)
+		for _, dirName := range dirList {
+			o.Printf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName)
+		}
+		needsSeparator = true
 	}
 
 	// Ignored files
 	ignoredLen := len(findings.ignoredFiles)
-	if ignoredLen == 1 {
-		o.Println("<white>There is also one ignored file.</white>\n")
-		printed = true
-	} else if ignoredLen > 1 {
-		o.Printf("</white>There are also %d ignored files.</white>\n", ignoredLen)
-		printed = true
-	}
+	if ignoredLen > 0 {
+		if needsSeparator {
+			o.Println()
+			needsSeparator = false
+		}
 
-	// Separation line
-	if printed {
-		o.Println()
-		printed = false
+		o.Printf("</white>There %s also %d ignored %s.</white>\n", english.PluralWord(ignoredLen, "is", "are"), ignoredLen, english.PluralWord(ignoredLen, "file", ""))
+
+		needsSeparator = true
 	}
 
 	// Git URL
 	if findings.git != nil {
-		o.Printf("<white>Git URL:</white> <red>%s</red>\n", findings.git.URL)
-		printed = true
-	}
+		if needsSeparator {
+			o.Println()
+			needsSeparator = false
+		}
 
-	// Separation line
-	if printed {
-		o.Println()
-		printed = false
+		o.Printf("<white>Git URL:</white> <red>%s</red>\n", findings.git.URL)
+
+		needsSeparator = true
 	}
 
 	// Last entry in the git log
@@ -173,17 +170,20 @@ func main() {
 		// ignore err here because we want to break the loop early
 		_ = cIter.ForEach(func(c *object.Commit) error {
 			logEntryAsString := strings.TrimRightFunc(c.String(), unicode.IsSpace)
-			o.Print(GitHighlightLines(strings.Split(logEntryAsString, "\n")))
-			printed = true
+			if len(logEntryAsString) > 0 {
+				if needsSeparator {
+					o.Println()
+					needsSeparator = false
+				}
+
+				commitTextLines := strings.Split(logEntryAsString, "\n")
+				o.Print(GitHighlightLines(commitTextLines))
+
+				needsSeparator = true
+			}
 			//return nil // continue
 			return errors.New("break") // break
 		})
 
 	}
-
-	// Separation line
-	//if printed {
-	//o.Println()
-	//printed = false
-	//}
 }
