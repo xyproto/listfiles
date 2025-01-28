@@ -51,7 +51,7 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		parts := SplitPath(path)
 		if len(parts) == 0 {
 			return fmt.Errorf("no path given: %s", path)
-		} else if len(parts) > maxDepth {
+		} else if len(parts) > (maxDepth + 1) {
 			return filepath.SkipDir // skip this directory
 		}
 		head := strings.ToLower(parts[0])

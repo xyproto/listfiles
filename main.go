@@ -184,7 +184,9 @@ func run(cfg *Config) error {
 
 		// Format and print the output
 		if typeInfo.Mode == mode.Blank && fInfo.IsDir() {
-			dirList = append(dirList, fn)
+			if fn != "." {
+				dirList = append(dirList, fn)
+			}
 		} else {
 			modified := fInfo.ModTime()
 			cell1 := fmt.Sprintf("<%s>%s</%s>", typeInfo.NameColor, fn, typeInfo.NameColor)
