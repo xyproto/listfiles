@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	versionString        = "pal 0.2.2"
+	versionString        = "pal 0.2.3"
 	defaultPath          = "."
 	defaultMaxDepth      = 1
 	defaultReadThreshold = 10 * 1042 * 1024 // 10 MiB file size
