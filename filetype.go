@@ -9,6 +9,8 @@ import (
 	"github.com/xyproto/mode"
 )
 
+const maxBinaryDetectionFileSize = 1024 * 1024 * 1024
+
 // FileTypeInfo contains comprehensive information about a file's type
 type FileTypeInfo struct {
 	Mode        mode.Mode
@@ -84,6 +86,12 @@ func DetectFileType(filename string, fileInfo os.FileInfo, data []byte) FileType
 				}
 			}
 
+		}
+	}
+
+	if m == mode.Blank && fileInfo.Size() < maxBinaryDetectionFileSize {
+		if data, err := os.ReadFile(filename); err == nil { // success
+			isBinary = binary.Data(data)
 		}
 	}
 
