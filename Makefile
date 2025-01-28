@@ -1,7 +1,8 @@
+.PHONY: all clean install uninstall pal
+
 BINARY := pal
 
 UNAME_S := $(shell uname -s)
-CGO_ENABLED ?= 1
 
 GOFLAGS := -mod=vendor -v -trimpath -buildmode=pie
 
@@ -19,12 +20,10 @@ endif
 
 BINDIR ?= $(PREFIX)/bin
 
-.PHONY: all clean install uninstall
-
 all: $(BINARY)
 
 $(BINARY):
-	CGO_ENABLED=$(CGO_ENABLED) go build $(GOFLAGS) -o $(BINARY)
+	go build $(GOFLAGS) -o $(BINARY)
 
 install: $(BINARY)
 	install -d $(DESTDIR)$(BINDIR)
