@@ -48,9 +48,6 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		if path == "" {
 			return nil // skip
 		}
-		if respectHiddenFiles && strings.Contains(path, "/.") {
-			return nil // skip
-		}
 
 		parts := SplitPath(path)
 		if len(parts) == 0 {
@@ -95,6 +92,16 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 			}
 			return nil // skip
 		}
+		if respectHiddenFiles && len(head) > 1 && strings.HasPrefix(head, ".") {
+			// Store the ignored file
+			go func() {
+				findings.mut.Lock()
+				findings.ignoredFiles = append(findings.ignoredFiles, path)
+				findings.infoMap[path] = fileInfo
+				findings.mut.Unlock()
+			}()
+			return nil // skip
+		}
 		if respectIgnoreFiles && (head == ".ignore" || head == ".gitignore") {
 			if extraIgnoredFilesData, err := os.ReadFile(head); err == nil { // success
 				lines := strings.Split(string(extraIgnoredFilesData), "\n")
@@ -108,7 +115,7 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 				}
 			}
 		}
-		if respectHiddenFiles && strings.HasPrefix(head, ".") {
+		if respectHiddenFiles && len(head) > 1 && strings.HasPrefix(head, ".") {
 			ignoreMut.Lock()
 			extraIgnoredFiles = append(extraIgnoredFiles, head)
 			ignoreMut.Unlock()
