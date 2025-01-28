@@ -87,7 +87,7 @@ func main() {
 			modified := fInfo.ModTime()
 			cell1 := fmt.Sprintf("<%s>%s</%s>", typeInfo.NameColor, fn, typeInfo.NameColor)
 			cell2 := fmt.Sprintf("[<%s>%s</%s>]", typeInfo.TypeColor, typeInfo.Description, typeInfo.TypeColor)
-			cell3 := TimeString(ok, modified, "lightyellow", "yellow", "white", "lightblue")
+			cell3 := TimeString(ok, modified, "lightyellow", "lightblue", "white")
 			cell4 := sizeDescription
 			printMap[modified] = cell1 + ";" + cell2 + ";" + cell3 + ";" + cell4
 		}
