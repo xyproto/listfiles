@@ -20,7 +20,8 @@ func askOllama(needsSeparator *bool, fileOverview string) (string, error) {
 			sb.WriteString("\n")
 			*needsSeparator = false
 		}
-		prompt := "Which command can be used on " + distrodetector.New().Name() + " to build this project? Only answer with the command, or NOPE.\n\n" + fileOverview
+		distroName := distrodetector.New().Name()
+		prompt := fmt.Sprintf("You are an expert %s developer. Which command can the user run to build or compile a project that has the following files:\n\n%s\n\nAnswer with a command that a script can run directly (no commentary), or just say true.", distroName, fileOverview)
 		output, err := oc.GetOutput(prompt)
 		if err != nil {
 			return "", err
@@ -34,13 +35,13 @@ func askOllama(needsSeparator *bool, fileOverview string) (string, error) {
 			buildCommands = append(buildCommands, strings.TrimSuffix(strings.TrimPrefix(line, "`"), "`"))
 		}
 		if l := len(buildCommands); l > 0 {
-			sb.WriteString(fmt.Sprintf("Build %s, suggested by %s:\n", english.PluralWord(l, "command", ""), ollamaModel))
+			sb.WriteString(fmt.Sprintf("<lightblue>Build %s, suggested by</lightblue> <lightyellow>%s</lightyellow><lightblue>:</lightblue>\n", english.PluralWord(l, "command", ""), ollamaModel))
 			if l > 1 {
 				sb.WriteString("\n")
 			}
 			sb.WriteString(strings.Join(buildCommands, "\n") + "\n")
 
-			if l > 0 && buildCommands[l-1] == "NOPE" {
+			if l > 0 && strings.TrimSpace(buildCommands[l-1]) == "true" {
 				return "", fmt.Errorf("Ollama (%s) could not propose a suitable build command", ollamaModel)
 			}
 

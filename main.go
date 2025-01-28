@@ -36,6 +36,7 @@ type Config struct {
 	respectHidden         bool
 	readFileSizeThreshold int64
 	lineCountThreshold    int64
+	ollama                bool
 }
 
 func parseHumanSize(sizeStr string) (int64, error) {
@@ -106,6 +107,7 @@ func NewRootCommand() *cobra.Command {
 		respectHidden:         true,
 		readFileSizeThreshold: defaultReadThreshold,
 		lineCountThreshold:    defaultLineThreshold,
+		ollama:                false,
 	}
 
 	cmd := &cobra.Command{
@@ -129,6 +131,7 @@ Example use:
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&cfg.showAll, "all", "a", false, "show all files (including hidden and ignored)")
+	flags.BoolVarP(&cfg.ollama, "ollama", "o", false, "use ollama to suggest a build command")
 
 	// Configure version flag
 	cmd.SetVersionTemplate(versionString + "\n")
@@ -191,11 +194,7 @@ func run(cfg *Config) error {
 			printMap[modified] = cell1 + ";" + cell2 + ";" + cell3 + ";" + cell4
 
 			// Project info, to be sent to Ollama
-			pi.WriteString(fn + ", ")
-			pi.WriteString(typeInfo.Description + ", ")
-			pi.WriteString(TimeString(ok, modified, "", "", "") + ", ")
-			pi.WriteString(sizeDescription)
-			pi.WriteString("\n")
+			pi.WriteString(fn + "\n")
 		}
 	}
 
@@ -291,8 +290,10 @@ func run(cfg *Config) error {
 	}
 
 	// Ask Ollama what a sensible build command could be
-	if result, err := askOllama(&needsSeparator, pi.String()); err == nil { // success
-		fmt.Println(result)
+	if cfg.ollama {
+		if result, err := askOllama(&needsSeparator, pi.String()); err == nil { // success
+			o.Println(result)
+		}
 	}
 
 	return nil
