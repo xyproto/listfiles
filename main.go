@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	versionString        = "PAL 0.0.1"
+	versionString        = "pal 0.1.0"
 	defaultPath          = "."
 	defaultMaxDepth      = 1
 	defaultReadThreshold = 10 * 1042 * 1024 // 10 MiB file size
@@ -111,7 +111,7 @@ func NewRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pal [depth] [path]",
 		Short: "List and analyze files in a directory",
-		Long: `PAL can list information about a directory
+		Long: `pal can list information about a directory
 
 Example use:
   pal                     # Examine the current directory with depth 1
