@@ -1,5 +1,6 @@
 ## Plans
 
+- [ ] Collect information concurrently once the file search is done.
 - [ ] Draw a nice user interface with perhaps a blue background.
 - [ ] Also support symlinks.
 - [ ] Try to show all relevant info on one screen, then let the user choose to see more details, see more or perform an action.
