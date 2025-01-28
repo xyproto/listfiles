@@ -32,6 +32,10 @@ github.com/ProtonMail/go-crypto/openpgp/packet
 github.com/ProtonMail/go-crypto/openpgp/s2k
 github.com/ProtonMail/go-crypto/openpgp/x25519
 github.com/ProtonMail/go-crypto/openpgp/x448
+# github.com/allegro/bigcache/v3 v3.1.1-0.20240222131551-901589e4644b
+## explicit; go 1.16
+github.com/allegro/bigcache/v3
+github.com/allegro/bigcache/v3/queue
 # github.com/cloudflare/circl v1.5.0
 ## explicit; go 1.22.0
 github.com/cloudflare/circl/dh/x25519
@@ -195,9 +199,15 @@ github.com/xyproto/mime
 # github.com/xyproto/mode v0.10.0
 ## explicit; go 1.23.2
 github.com/xyproto/mode
+# github.com/xyproto/ollamaclient/v2 v2.7.1
+## explicit; go 1.23.1
+github.com/xyproto/ollamaclient/v2
 # github.com/xyproto/textoutput v1.17.1
 ## explicit; go 1.22.0
 github.com/xyproto/textoutput
+# github.com/xyproto/usermodel v1.2.2
+## explicit; go 1.23.1
+github.com/xyproto/usermodel
 # github.com/xyproto/vt100 v1.16.11
 ## explicit; go 1.22.0
 github.com/xyproto/vt100
