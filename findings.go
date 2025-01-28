@@ -40,6 +40,7 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 
 	var ignoreMut sync.Mutex
 	var extraIgnoredFiles []string
+	var wg sync.WaitGroup
 
 	walkFunc := func(path string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
@@ -51,13 +52,15 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		parts := SplitPath(path)
 		if len(parts) == 0 {
 			return fmt.Errorf("no path given: %s", path)
-		} else if len(parts) > (maxDepth + 1) {
+		} else if len(parts) > maxDepth {
 			return filepath.SkipDir // skip this directory
 		}
 		head := strings.ToLower(parts[0])
 		if head == "vendor" {
 			// Store the ignored file
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				findings.mut.Lock()
 				findings.ignoredFiles = append(findings.ignoredFiles, path)
 				findings.infoMap[path] = fileInfo
@@ -67,7 +70,9 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		}
 		if head == ".git" {
 			// Store the ignored file
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				findings.mut.Lock()
 				findings.ignoredFiles = append(findings.ignoredFiles, path)
 				findings.infoMap[path] = fileInfo
@@ -79,7 +84,9 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 			foundGit = findings.git != nil
 			findings.mut.Unlock()
 			if !foundGit {
+				wg.Add(1)
 				go func() {
+					defer wg.Done()
 					git, err := NewGit(head) // pass in the path to the .git directory
 					if err != nil {
 						return // don't store the git struct in the findings
@@ -93,7 +100,9 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		}
 		if respectHiddenFiles && len(head) > 1 && strings.HasPrefix(head, ".") {
 			// Store the ignored file
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				findings.mut.Lock()
 				findings.ignoredFiles = append(findings.ignoredFiles, path)
 				findings.infoMap[path] = fileInfo
@@ -120,7 +129,9 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 			ignoreMut.Unlock()
 		}
 		// Store a regular file
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			findings.mut.Lock()
 			findings.regularFiles = append(findings.regularFiles, path)
 			findings.infoMap[path] = fileInfo
@@ -142,7 +153,8 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		return false, -1
 	}
 
-	findings.mut.Lock()
+	wg.Wait() // The mutexes above are not needed after this point
+
 	for _, extraIgnoredFile := range extraIgnoredFiles {
 		if ok, index := hasS(findings.regularFiles, extraIgnoredFile); ok {
 			// delete extraIgnoredFile from findings.regular by appending two sliced string slices
@@ -151,7 +163,6 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 			findings.ignoredFiles = append(findings.ignoredFiles, extraIgnoredFile)
 		}
 	}
-	findings.mut.Unlock()
 
 	return findings, nil
 }
