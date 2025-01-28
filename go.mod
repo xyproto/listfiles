@@ -9,6 +9,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/xyproto/binary v1.3.3
 	github.com/xyproto/files v1.9.0
+	github.com/xyproto/mime v0.0.0-20210817202956-28bafd7b06b4
 	github.com/xyproto/mode v0.10.0
 	github.com/xyproto/textoutput v1.17.1
 )
