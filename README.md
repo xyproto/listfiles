@@ -6,5 +6,11 @@ The goal is to present the user with a palette of options for which action to pe
 
 This is a work in progress.
 
+### Screenshots
+
+![Screenshot](img/screenshot.png)
+
+### General info
+
 * License: BSD-3
 * Version: 0.2.1
