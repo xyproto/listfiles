@@ -13,4 +13,4 @@ This is a work in progress.
 ### General info
 
 * License: BSD-3
-* Version: 0.2.3
+* Version: 0.2.4
