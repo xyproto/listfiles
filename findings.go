@@ -57,27 +57,51 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		}
 		head := strings.ToLower(parts[0])
 		if head == "vendor" {
-			// Store the ignored file
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				findings.mut.Lock()
-				findings.ignoredFiles = append(findings.ignoredFiles, path)
-				findings.infoMap[path] = fileInfo
-				findings.mut.Unlock()
-			}()
+			if respectIgnoreFiles {
+				// Store the ignored file
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					findings.mut.Lock()
+					findings.ignoredFiles = append(findings.ignoredFiles, path)
+					findings.infoMap[path] = fileInfo
+					findings.mut.Unlock()
+				}()
+			} else {
+				// Store a regular file
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					findings.mut.Lock()
+					findings.regularFiles = append(findings.regularFiles, path)
+					findings.infoMap[path] = fileInfo
+					findings.mut.Unlock()
+				}()
+			}
 			return nil // skip
 		}
 		if head == ".git" {
-			// Store the ignored file
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				findings.mut.Lock()
-				findings.ignoredFiles = append(findings.ignoredFiles, path)
-				findings.infoMap[path] = fileInfo
-				findings.mut.Unlock()
-			}()
+			if respectIgnoreFiles {
+				// Store the ignored file
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					findings.mut.Lock()
+					findings.ignoredFiles = append(findings.ignoredFiles, path)
+					findings.infoMap[path] = fileInfo
+					findings.mut.Unlock()
+				}()
+			} else {
+				// Store a regular file
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					findings.mut.Lock()
+					findings.regularFiles = append(findings.regularFiles, path)
+					findings.infoMap[path] = fileInfo
+					findings.mut.Unlock()
+				}()
+			}
 			// Find and store Git info
 			foundGit := false
 			findings.mut.Lock()
