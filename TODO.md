@@ -1,5 +1,6 @@
 ## Plans
 
+- [ ] Files in ~/vid should not be "Go-style Assembly".
 - [ ] Collect information concurrently once the file search is done.
 - [ ] Draw a nice user interface with perhaps a blue background.
 - [ ] Also support symlinks.
