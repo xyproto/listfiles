@@ -8,6 +8,7 @@ require (
 	github.com/iafan/cwalk v0.0.0-20210125030640-586a8832a711
 	github.com/spf13/cobra v1.8.1
 	github.com/xyproto/binary v1.3.3
+	github.com/xyproto/distrodetector v1.3.1
 	github.com/xyproto/files v1.9.0
 	github.com/xyproto/mime v0.2.1
 	github.com/xyproto/mode v0.10.0
