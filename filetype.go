@@ -3,13 +3,17 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/xyproto/binary"
+	"github.com/xyproto/mime"
 	"github.com/xyproto/mode"
 )
 
 const maxBinaryDetectionFileSize = 1024 * 1024 * 1024
+
+var mi *mime.Reader
 
 // FileTypeInfo contains comprehensive information about a file's type
 type FileTypeInfo struct {
@@ -101,6 +105,22 @@ func DetectFileType(filename string, fileInfo os.FileInfo, data []byte) FileType
 	// Keep the colors but change the description if the file is empty
 	if fileInfo.Size() == 0 {
 		description = "Empty"
+	}
+
+	if description == "Unknown" {
+		if mi == nil {
+			mi = mime.New("testconf/mime.types", true)
+		}
+		mimeDescription := strings.TrimSpace(mi.Get(filepath.Ext(filename)))
+		if mimeDescription != "" {
+			description = mimeDescription
+			if strings.Contains(description, "/") {
+				fields := strings.SplitN(description, "/", 2)
+				description = strings.TrimPrefix(fields[1], "x-")
+				firstLetter := strings.ToUpper(string(description[0]))
+				description = firstLetter + description[1:]
+			}
+		}
 	}
 
 	return FileTypeInfo{
