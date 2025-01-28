@@ -1,59 +1,40 @@
 package main
 
 import (
-	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/xyproto/binary"
 	"github.com/xyproto/mode"
 	"github.com/xyproto/textoutput"
 )
 
-func TypeDescriptionAndColors(m mode.Mode, isDir, isBinary bool) (string, string, string) {
-	if !isDir && m != mode.Blank && !isBinary {
-		return m.String(), "cyan", "lightgreen"
-	} else if isBinary {
-		return "Binary", "red", "lightred"
-	}
-	switch m {
-	case mode.Blank:
-		return "Unknown", "gray", "white"
-	case mode.Markdown, mode.Text, mode.ReStructured, mode.SCDoc, mode.ASCIIDoc:
-		return m.String(), "cyan", "magenta"
-	case mode.Config:
-		return m.String(), "cyan", "yellow"
-	}
-	return "Unknown", "gray", "white"
-}
-
-func TimeString(foundTime bool, modified time.Time, agoColor, recentTimeColor, oldTimeColor, dateColor string) string {
-	if !foundTime {
-		return "-"
-	}
-	if elapsed := time.Since(modified); elapsed < time.Hour*24 {
-		return fmt.Sprintf("<"+agoColor+">%s ago @</"+agoColor+"><"+recentTimeColor+">%s</"+recentTimeColor+">", formatElapsed(elapsed), modified.Format("15:04:05"))
-	}
-	return fmt.Sprintf("<"+oldTimeColor+">%s</"+oldTimeColor+">, <"+dateColor+">%s</"+dateColor+">", modified.Format("2006-01-02"), modified.Format("15:04:05"))
-}
-
 func main() {
-
 	const (
-		path               = "."
-		respectIgnoreFiles = true // Ignore filenames mentioned in .ignore or .gitignore
-		respectHiddenFiles = true // Ignore filenames starting with "."
-		maxDepth           = 1
-
-		readFileSizeThreshold  = 1000 * 1024 // Don't read in files larger than 100k
-		lineCountSizeThreshold = 100 * 1024  // Don't start counting lines of text files larger than 10k
+		path                   = "."
+		respectIgnoreFiles     = true
+		respectHiddenFiles     = true
+		readFileSizeThreshold  = 1000 * 1024
+		lineCountSizeThreshold = 100 * 1024
 	)
+
+	maxDepth := 1
+
+	flag.Parse()
+	args := flag.Args()
+	if len(args) > 0 {
+		if n, err := strconv.Atoi(args[0]); err == nil { // success
+			maxDepth = n
+		}
+	}
 
 	o := textoutput.New()
 
@@ -63,68 +44,73 @@ func main() {
 	}
 
 	var (
-		dirList []string
-		printed bool
+		dirList  []string
+		printed  bool
+		printMap = make(map[time.Time]string)
 	)
 
 	// List regular files
 	for _, fn := range findings.regularFiles {
-		var (
-			isBinary         bool
-			isDir            bool
-			m                mode.Mode
-			modified         time.Time
-			foundTimeAndSize bool
-			size             int64
-		)
-		if fInfo, ok := findings.infoMap[fn]; ok {
-			foundTimeAndSize = true
-			modified = fInfo.ModTime()
-			isDir = fInfo.IsDir()
-			size = fInfo.Size()
+		// If we don't have file info, just show the filename
+		fInfo, ok := findings.infoMap[fn]
+		if !ok {
+			o.Println(fmt.Sprintf("<white>%s</white>", fn))
+			printed = true
+			continue
 		}
-		m = mode.Detect(fn)
 
-		sizeDescription := "too large to analyze"
-		if size < readFileSizeThreshold {
-			if data, err := os.ReadFile(fn); err == nil { // success
-				if m == mode.Blank {
-					m = mode.SimpleDetectBytes(data)
-				}
-				isBinary = binary.Data(data)
-				if isBinary {
-					sizeDescription = fmt.Sprintf("%d bytes", size)
-				} else if size < lineCountSizeThreshold {
-					// TODO: Detect if there is a trailing newline for an improved line count
-					lineCount := bytes.Count(data, []byte{'\n'})
-					sizeDescription = fmt.Sprintf("%d lines", lineCount)
-				}
+		// Read file contents if it's small enough
+		var fileContents []byte
+		if fInfo.Size() < readFileSizeThreshold {
+			if data, err := os.ReadFile(fn); err == nil {
+				fileContents = data
 			}
 		}
 
-		description, typeColor, fileColor := TypeDescriptionAndColors(m, isDir, isBinary)
+		// Detect file type using contents if available
+		typeInfo := DetectFileType(fn, fInfo, fileContents)
 
-		// Print the gathered data for this file as a colored line of text, not for directories
+		// Generate size description
+		var sizeDescription string
+		if typeInfo.IsBinary || typeInfo.LineCount < 0 {
+			sizeDescription = fmt.Sprintf("%d bytes", fInfo.Size())
+		} else {
+			sizeDescription = fmt.Sprintf("%d lines", typeInfo.LineCount)
+		}
 
-		if isDir {
+		// Format and print the output
+		if typeInfo.Mode == mode.Blank && fInfo.IsDir() {
 			dirList = append(dirList, fn)
 		} else {
-			cell1 := fmt.Sprintf("[<"+typeColor+">%s</"+typeColor+">]", description)
-			cell2 := fmt.Sprintf("<"+fileColor+">%s</"+fileColor+">", fn)
-			cell3 := TimeString(foundTimeAndSize, modified, "lightyellow", "yellow", "white", "lightblue")
+			modified := fInfo.ModTime()
+			cell1 := fmt.Sprintf("<%s>%s</%s>", typeInfo.NameColor, fn, typeInfo.NameColor)
+			cell2 := fmt.Sprintf("[<%s>%s</%s>]", typeInfo.TypeColor, typeInfo.Description, typeInfo.TypeColor)
+			cell3 := TimeString(ok, modified, "lightyellow", "yellow", "white", "lightblue")
 			cell4 := sizeDescription
-			o.Println(cell2 + ";" + cell1 + ";" + cell3 + ";" + cell4)
-			printed = true
+			printMap[modified] = cell1 + ";" + cell2 + ";" + cell3 + ";" + cell4
 		}
 	}
 
-	// Separation line
-	if printed {
+	if l := len(printMap); l > 0 {
+		keys := make([]time.Time, l, l)
+		counter := 0
+		for k := range printMap {
+			keys[counter] = k
+			counter++
+		}
+		sort.Slice(keys, func(i, j int) bool {
+			return keys[i].Before(keys[j])
+		})
+		// Print all the files, sorted by modification time
+		for _, k := range keys {
+			o.Println(printMap[k])
+		}
+		// Separation line
 		o.Println()
-		printed = false
 	}
 
 	// List directories
+	sort.Strings(dirList)
 	for _, dirName := range dirList {
 		o.Printf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName)
 		printed = true
@@ -190,18 +176,14 @@ func main() {
 			o.Print(GitHighlightLines(strings.Split(logEntryAsString, "\n")))
 			printed = true
 			//return nil // continue
-			return errors.New("stop") // break
+			return errors.New("break") // break
 		})
 
-		//if err != nil {
-		//o.ErrExit("FILA " + err.Error())
-		//log.Fatalln(err)
-		//}
 	}
 
 	// Separation line
-	if printed {
-		o.Println()
-		printed = false
-	}
+	//if printed {
+	//o.Println()
+	//printed = false
+	//}
 }

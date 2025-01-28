@@ -48,6 +48,10 @@ func Examine(path string, respectIgnoreFiles, respectHiddenFiles bool, maxDepth 
 		if path == "" {
 			return nil // skip
 		}
+		if respectHiddenFiles && strings.Contains(path, "/.") {
+			return nil // skip
+		}
+
 		parts := SplitPath(path)
 		if len(parts) == 0 {
 			return fmt.Errorf("no path given: %s", path)
