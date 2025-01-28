@@ -119,7 +119,7 @@ Example use:
   pal /path/to/dir 2      # Examine the specified directory with depth 2
   pal /path/to/dir        # Examine the specified directory with depth 1`,
 		Version: versionString,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if err := processArgs(cfg, args); err != nil {
 				return err
 			}
@@ -241,14 +241,8 @@ func run(cfg *Config) error {
 			needsSeparator = false
 		}
 
-		o.Printf("<white>Git URL:</white> <red>%s</red>\n", findings.git.URL)
+		o.Printf("<yellow>Git URL:</yellow> <lightblue>%s</lightblue>\n", findings.git.URL)
 
-		needsSeparator = true
-	}
-
-	// Last entry in the git log
-	if findings.git != nil {
-		//r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{URL: findings.git.URL})
 		r, err := git.PlainOpen(cfg.path)
 		if err != nil {
 			return err
