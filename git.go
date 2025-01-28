@@ -62,19 +62,49 @@ func GitHighlightLines(lines []string) string {
 	var sb strings.Builder
 	for _, line := range lines {
 		if strings.HasPrefix(line, "commit ") {
-			fields := strings.SplitN(line, " ", 2) // must work, already checked for " "
+			fields := strings.SplitN(line, " ", 2) // already checked for " "
 			sb.WriteString("<red>commit</red> <white>")
-			sb.WriteString(strings.TrimSpace(fields[1])) // must work, len(fields) is now 2
+			sb.WriteString(strings.TrimSpace(fields[1])) // len(fields) is 2
 			sb.WriteString("</white>\n")
 		} else if strings.HasPrefix(line, "Author:") {
-			fields := strings.SplitN(line, ":", 2) // must work, already checked for ":"
-			sb.WriteString("<blue>")
-			sb.WriteString(strings.TrimSpace(fields[1])) // must work, len(fields) is now 2
-			sb.WriteString("</blue>")
+			fields := strings.SplitN(line, ":", 2)            // already checked for ":"
+			nameAndMaybeEmail := strings.TrimSpace(fields[1]) // len(fields) is 2
+			if strings.Contains(nameAndMaybeEmail, "@") && strings.Contains(nameAndMaybeEmail, "<") {
+				fields = strings.SplitN(nameAndMaybeEmail, "<", 2)
+				name := strings.TrimSpace(fields[0])
+				email := strings.TrimSpace(fields[1])
+				if strings.Contains(email, ">") {
+					fields = strings.SplitN(email, ">", 2)
+					email = strings.TrimSpace(fields[0])
+				}
+				sb.WriteString("<lightgreen>")
+				sb.WriteString(name)
+				sb.WriteString("</lightgreen> ")
+				sb.WriteString("<red><</red>") // red <
+				if strings.Contains(email, "@") {
+					fields = strings.SplitN(email, "@", 2)
+					username := strings.TrimSpace(fields[0])
+					host := strings.TrimSpace(fields[1])
+					sb.WriteString("<lightblue>")
+					sb.WriteString(username)
+					sb.WriteString("</lightblue><red>@</red><lightblue>")
+					sb.WriteString(host)
+					sb.WriteString("</lightblue>")
+				} else {
+					sb.WriteString("<lightblue>")
+					sb.WriteString(email)
+					sb.WriteString("</lightblue>")
+				}
+				sb.WriteString("<red>></red>") // red <
+			} else {
+				sb.WriteString("<blue>")
+				sb.WriteString(nameAndMaybeEmail)
+				sb.WriteString("</blue>")
+			}
 		} else if strings.HasPrefix(line, "Date:") {
-			sb.WriteString(", ")
-			fields := strings.SplitN(line, ":", 2)     // must work, already checked for ":"
-			timeString := strings.TrimSpace(fields[1]) // must work, len(fields) is now 2
+			sb.WriteString(" ")
+			fields := strings.SplitN(line, ":", 2)     // already checked for ":"
+			timeString := strings.TrimSpace(fields[1]) // len(fields) is 2
 			// Example git time: Mon Jan 27 17:37:49 2025 +0100
 			const gitTimeFormatString = "Mon Jan 2 15:04:05 2006 -0700"            // magical numbers, see the time package documentation
 			if t, err := time.Parse(gitTimeFormatString, timeString); err == nil { // success
@@ -99,9 +129,9 @@ func GitHighlightLines(lines []string) string {
 			}
 			sb.WriteString("\n")
 		} else {
-			sb.WriteString("<green>")
+			// Without color
 			sb.WriteString(line)
-			sb.WriteString("</green>\n")
+			sb.WriteString("\n")
 		}
 	}
 	return sb.String()
