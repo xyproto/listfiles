@@ -11,6 +11,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/dustin/go-humanize"
+	"github.com/dustin/go-humanize/english"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/xyproto/mode"
@@ -73,7 +75,7 @@ func main() {
 		// Generate size description
 		var sizeDescription string
 		if typeInfo.IsBinary || typeInfo.LineCount < 0 {
-			sizeDescription = fmt.Sprintf("%d bytes", fInfo.Size())
+			sizeDescription = humanize.IBytes(uint64(fInfo.Size()))
 		} else {
 			sizeDescription = fmt.Sprintf("%d lines", typeInfo.LineCount)
 		}
@@ -123,8 +125,7 @@ func main() {
 	}
 
 	// Ignored files
-	ignoredLen := len(findings.ignoredFiles)
-	if ignoredLen > 0 {
+	if ignoredLen := len(findings.ignoredFiles); ignoredLen > 0 {
 		if needsSeparator {
 			o.Println()
 			needsSeparator = false
