@@ -189,7 +189,7 @@ github.com/xyproto/files
 # github.com/xyproto/lookslikegoasm v1.0.0
 ## explicit; go 1.23.2
 github.com/xyproto/lookslikegoasm
-# github.com/xyproto/mime v0.0.0-20210817202956-28bafd7b06b4
+# github.com/xyproto/mime v0.2.1
 ## explicit; go 1.10
 github.com/xyproto/mime
 # github.com/xyproto/mode v0.10.0
