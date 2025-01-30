@@ -235,45 +235,26 @@ func (cfg *Config) ListDirs(ob *strings.Builder, dirList []string, needsSeparato
 	}
 }
 
-func run(cfg *Config) error {
-
-	var (
-		needsSeparator bool
-		ob             strings.Builder // output string
-		fileOverview   string
-	)
-
-	findings, err := Examine(cfg.path, cfg.respectIgnored, cfg.respectHidden, cfg.maxDepth)
-	if err != nil {
-		return fmt.Errorf("file search failed: %v", err)
-	}
-
-	dirList, fileOverview, err := cfg.ListFiles(&ob, findings, &needsSeparator)
-	if err != nil {
-		return fmt.Errorf("could not list files: %v", err)
-	}
-
-	cfg.ListDirs(&ob, dirList, &needsSeparator)
-
-	o := textoutput.New()
-
+func (cfg *Config) IgnoredFiles(ob *strings.Builder, findings *Findings, needsSeparator *bool) {
 	// Ignored files
 	if ignoredLen := len(findings.ignoredFiles); ignoredLen > 0 {
-		if needsSeparator {
+		if *needsSeparator {
 			ob.WriteString("\n")
-			needsSeparator = false
+			*needsSeparator = false
 		}
 
 		ob.WriteString(fmt.Sprintf("</white>There %s also %d ignored %s.</white>\n", english.PluralWord(ignoredLen, "is", "are"), ignoredLen, english.PluralWord(ignoredLen, "file", "")))
 
-		needsSeparator = true
+		*needsSeparator = true
 	}
+}
 
+func (cfg *Config) LatestGitCommitThisYear(ob *strings.Builder, findings *Findings, needsSeparator *bool) error {
 	// Git URL
 	if findings.git != nil {
-		if needsSeparator {
+		if *needsSeparator {
 			ob.WriteString("\n")
-			needsSeparator = false
+			*needsSeparator = false
 		}
 
 		ob.WriteString(fmt.Sprintf("<yellow>Git URL:</yellow> <lightblue>%s</lightblue>\n", findings.git.URL))
@@ -299,25 +280,29 @@ func run(cfg *Config) error {
 		_ = cIter.ForEach(func(c *object.Commit) error {
 			logEntryAsString := strings.TrimRightFunc(c.String(), unicode.IsSpace)
 			if len(logEntryAsString) > 0 {
-				if needsSeparator {
+				if *needsSeparator {
 					ob.WriteString("\n")
-					needsSeparator = false
+					*needsSeparator = false
 				}
 
 				commitTextLines := strings.Split(logEntryAsString, "\n")
 				ob.WriteString(GitHighlightLines(commitTextLines))
 
-				needsSeparator = true
+				*needsSeparator = true
 			}
 			return errors.New("break") // return nil instead to continue priting git commit messages
 		})
 	}
 
+	return nil
+}
+
+func (cfg *Config) OllamaBuildCommand(ob *strings.Builder, fileOverview string, needsSeparator *bool) error {
 	// Ask Ollama what a sensible build command could be
 	if cfg.ollama {
-		if needsSeparator {
+		if *needsSeparator {
 			ob.WriteString("\n")
-			needsSeparator = false
+			*needsSeparator = false
 		}
 
 		model, err := NewModel()
@@ -329,9 +314,40 @@ func run(cfg *Config) error {
 			ob.WriteString(result + "\n")
 		}
 
-		needsSeparator = false
+		*needsSeparator = false
+	}
+	return nil
+}
+
+func run(cfg *Config) error {
+	var (
+		needsSeparator bool
+		ob             strings.Builder // output string
+	)
+
+	findings, err := Examine(cfg.path, cfg.respectIgnored, cfg.respectHidden, cfg.maxDepth)
+	if err != nil {
+		return fmt.Errorf("file search failed: %v", err)
 	}
 
+	dirList, fileOverview, err := cfg.ListFiles(&ob, findings, &needsSeparator)
+	if err != nil {
+		return fmt.Errorf("could not list files: %v", err)
+	}
+
+	cfg.ListDirs(&ob, dirList, &needsSeparator)
+
+	cfg.IgnoredFiles(&ob, findings, &needsSeparator)
+
+	if err := cfg.LatestGitCommitThisYear(&ob, findings, &needsSeparator); err != nil {
+		return err
+	}
+
+	if err := cfg.OllamaBuildCommand(&ob, fileOverview, &needsSeparator); err != nil {
+		return err
+	}
+
+	o := textoutput.New()
 	o.Print(ob.String())
 
 	return nil
