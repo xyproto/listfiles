@@ -308,7 +308,7 @@ func run(cfg *Config) error {
 			o.Println(result)
 		}
 
-		//needsSeparator = false
+		needsSeparator = false
 	}
 
 	return nil
@@ -316,6 +316,7 @@ func run(cfg *Config) error {
 
 func main() {
 	if err := NewRootCommand().Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "\nerror: %v\n", err)
 		os.Exit(1)
 	}
 }
