@@ -10,6 +10,10 @@ This is a work in progress.
 
 ![Screenshot](img/screenshot.png)
 
+### Ollama and LLMs
+
+* `export OLLAMA_MODEL=deepseek-r1:14b` to use the Deepseek R1 14B parameter model when using the `-o` flag.
+
 ### General info
 
 * License: BSD-3
