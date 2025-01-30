@@ -139,20 +139,15 @@ Example use:
 	return cmd
 }
 
-func run(cfg *Config) error {
-
+func (cfg *Config) ListFiles(ob *strings.Builder, findings *Findings, needsSeparator *bool) (dirList []string, fileOverview string, err error) {
 	var (
-		dirList        []string
-		printMap       = make(map[time.Time]string)
-		needsSeparator bool
-		o              = textoutput.New()
-		pi             strings.Builder // project info string
-		ob             strings.Builder // output string
+		pi       strings.Builder // project info string
+		printMap = make(map[time.Time]string)
 	)
 
-	findings, err := Examine(cfg.path, cfg.respectIgnored, cfg.respectHidden, cfg.maxDepth)
-	if err != nil {
-		return fmt.Errorf("examination failed: %w", err)
+	if *needsSeparator {
+		ob.WriteString("\n")
+		*needsSeparator = false
 	}
 
 	// In the file processing loop, use cfg.readFileSizeThreshold:
@@ -160,7 +155,7 @@ func run(cfg *Config) error {
 		fInfo, ok := findings.infoMap[fn]
 		if !ok {
 			ob.WriteString(fmt.Sprintf("<white>%s</white>\n", fn))
-			needsSeparator = true
+			*needsSeparator = true
 			continue
 		}
 
@@ -218,21 +213,49 @@ func run(cfg *Config) error {
 			ob.WriteString("\n")
 		}
 
-		needsSeparator = true
+		*needsSeparator = true
 	}
 
+	// return a file overview
+	return dirList, pi.String(), nil
+}
+
+func (cfg *Config) ListDirs(ob *strings.Builder, dirList []string, needsSeparator *bool) {
 	// List directories, if any
 	if len(dirList) > 0 {
-		if needsSeparator {
+		if *needsSeparator {
 			ob.WriteString("\n")
-			needsSeparator = false
+			*needsSeparator = false
 		}
 		sort.Strings(dirList)
 		for _, dirName := range dirList {
 			ob.WriteString(fmt.Sprintf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName))
 		}
-		needsSeparator = true
+		*needsSeparator = true
 	}
+}
+
+func run(cfg *Config) error {
+
+	var (
+		needsSeparator bool
+		ob             strings.Builder // output string
+		fileOverview   string
+	)
+
+	findings, err := Examine(cfg.path, cfg.respectIgnored, cfg.respectHidden, cfg.maxDepth)
+	if err != nil {
+		return fmt.Errorf("file search failed: %v", err)
+	}
+
+	dirList, fileOverview, err := cfg.ListFiles(&ob, findings, &needsSeparator)
+	if err != nil {
+		return fmt.Errorf("could not list files: %v", err)
+	}
+
+	cfg.ListDirs(&ob, dirList, &needsSeparator)
+
+	o := textoutput.New()
 
 	// Ignored files
 	if ignoredLen := len(findings.ignoredFiles); ignoredLen > 0 {
@@ -302,7 +325,6 @@ func run(cfg *Config) error {
 			fmt.Fprintf(os.Stderr, "\nCould not connect to Ollama: %v\n", err)
 			return nil // don't report this as an error on top of this
 		}
-		fileOverview := pi.String()
 		if result, err := model.GetBuildCommand(fileOverview); err == nil { // success
 			ob.WriteString(result + "\n")
 		}
