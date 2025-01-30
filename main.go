@@ -146,7 +146,8 @@ func run(cfg *Config) error {
 		printMap       = make(map[time.Time]string)
 		needsSeparator bool
 		o              = textoutput.New()
-		pi             strings.Builder
+		pi             strings.Builder // project info string
+		ob             strings.Builder // output string
 	)
 
 	findings, err := Examine(cfg.path, cfg.respectIgnored, cfg.respectHidden, cfg.maxDepth)
@@ -158,7 +159,7 @@ func run(cfg *Config) error {
 	for _, fn := range findings.regularFiles {
 		fInfo, ok := findings.infoMap[fn]
 		if !ok {
-			o.Println(fmt.Sprintf("<white>%s</white>", fn))
+			ob.WriteString(fmt.Sprintf("<white>%s</white>\n", fn))
 			needsSeparator = true
 			continue
 		}
@@ -212,12 +213,10 @@ func run(cfg *Config) error {
 			return keys[i].Before(keys[j])
 		})
 		// Print all the files, sorted by modification time
-		var sb strings.Builder
 		for _, k := range keys {
-			sb.WriteString(printMap[k])
-			sb.WriteString("\n")
+			ob.WriteString(printMap[k])
+			ob.WriteString("\n")
 		}
-		o.Print(sb.String())
 
 		needsSeparator = true
 	}
@@ -225,12 +224,12 @@ func run(cfg *Config) error {
 	// List directories, if any
 	if len(dirList) > 0 {
 		if needsSeparator {
-			o.Println()
+			ob.WriteString("\n")
 			needsSeparator = false
 		}
 		sort.Strings(dirList)
 		for _, dirName := range dirList {
-			o.Printf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName)
+			ob.WriteString(fmt.Sprintf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName))
 		}
 		needsSeparator = true
 	}
@@ -238,11 +237,11 @@ func run(cfg *Config) error {
 	// Ignored files
 	if ignoredLen := len(findings.ignoredFiles); ignoredLen > 0 {
 		if needsSeparator {
-			o.Println()
+			ob.WriteString("\n")
 			needsSeparator = false
 		}
 
-		o.Printf("</white>There %s also %d ignored %s.</white>\n", english.PluralWord(ignoredLen, "is", "are"), ignoredLen, english.PluralWord(ignoredLen, "file", ""))
+		ob.WriteString(fmt.Sprintf("</white>There %s also %d ignored %s.</white>\n", english.PluralWord(ignoredLen, "is", "are"), ignoredLen, english.PluralWord(ignoredLen, "file", "")))
 
 		needsSeparator = true
 	}
@@ -250,11 +249,11 @@ func run(cfg *Config) error {
 	// Git URL
 	if findings.git != nil {
 		if needsSeparator {
-			o.Println()
+			ob.WriteString("\n")
 			needsSeparator = false
 		}
 
-		o.Printf("<yellow>Git URL:</yellow> <lightblue>%s</lightblue>\n", findings.git.URL)
+		ob.WriteString(fmt.Sprintf("<yellow>Git URL:</yellow> <lightblue>%s</lightblue>\n", findings.git.URL))
 
 		r, err := git.PlainOpen(cfg.path)
 		if err != nil {
@@ -278,12 +277,12 @@ func run(cfg *Config) error {
 			logEntryAsString := strings.TrimRightFunc(c.String(), unicode.IsSpace)
 			if len(logEntryAsString) > 0 {
 				if needsSeparator {
-					o.Println()
+					ob.WriteString("\n")
 					needsSeparator = false
 				}
 
 				commitTextLines := strings.Split(logEntryAsString, "\n")
-				o.Print(GitHighlightLines(commitTextLines))
+				ob.WriteString(GitHighlightLines(commitTextLines))
 
 				needsSeparator = true
 			}
@@ -294,7 +293,7 @@ func run(cfg *Config) error {
 	// Ask Ollama what a sensible build command could be
 	if cfg.ollama {
 		if needsSeparator {
-			o.Println()
+			ob.WriteString("\n")
 			needsSeparator = false
 		}
 
@@ -305,11 +304,13 @@ func run(cfg *Config) error {
 		}
 		fileOverview := pi.String()
 		if result, err := model.GetBuildCommand(fileOverview); err == nil { // success
-			o.Println(result)
+			ob.WriteString(result + "\n")
 		}
 
 		needsSeparator = false
 	}
+
+	o.Print(ob.String())
 
 	return nil
 }
