@@ -293,9 +293,22 @@ func run(cfg *Config) error {
 
 	// Ask Ollama what a sensible build command could be
 	if cfg.ollama {
-		if result, err := askOllama(&needsSeparator, pi.String()); err == nil { // success
+		if needsSeparator {
+			o.Println()
+			needsSeparator = false
+		}
+
+		model, err := NewModel()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "\nCould not connect to Ollama: %v\n", err)
+			return nil // don't report this as an error on top of this
+		}
+		fileOverview := pi.String()
+		if result, err := model.GetBuildCommand(fileOverview); err == nil { // success
 			o.Println(result)
 		}
+
+		//needsSeparator = false
 	}
 
 	return nil
@@ -303,7 +316,6 @@ func run(cfg *Config) error {
 
 func main() {
 	if err := NewRootCommand().Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 }
