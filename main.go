@@ -139,17 +139,12 @@ Example use:
 	return cmd
 }
 
-func (cfg *Config) ListFiles(ob *strings.Builder, findings *Findings, needsSeparator *bool) (dirList []string, fileOverview string, err error) {
-	var (
-		pi       strings.Builder // project info string
-		printMap = make(map[time.Time]string)
-	)
-
+func (cfg *Config) AnalyzeFiles(ob *strings.Builder, findings *Findings, needsSeparator *bool) error {
+	findings.printMap = make(map[time.Time]string)
 	if *needsSeparator {
 		ob.WriteString("\n")
 		*needsSeparator = false
 	}
-
 	// In the file processing loop, use cfg.readFileSizeThreshold:
 	for _, fn := range findings.regularFiles {
 		fInfo, ok := findings.infoMap[fn]
@@ -158,7 +153,6 @@ func (cfg *Config) ListFiles(ob *strings.Builder, findings *Findings, needsSepar
 			*needsSeparator = true
 			continue
 		}
-
 		// Read file contents if it's small enough
 		var fileContents []byte
 		if fInfo.Size() < cfg.readFileSizeThreshold {
@@ -166,10 +160,8 @@ func (cfg *Config) ListFiles(ob *strings.Builder, findings *Findings, needsSepar
 				fileContents = data
 			}
 		}
-
 		// Detect file type using contents if available
 		typeInfo := DetectFileType(fn, fInfo, fileContents)
-
 		// Generate size description
 		var sizeDescription string
 		if typeInfo.IsBinary || typeInfo.LineCount < 0 {
@@ -177,11 +169,10 @@ func (cfg *Config) ListFiles(ob *strings.Builder, findings *Findings, needsSepar
 		} else {
 			sizeDescription = fmt.Sprintf("%d lines", typeInfo.LineCount)
 		}
-
 		// Format and print the output
 		if typeInfo.Mode == mode.Blank && fInfo.IsDir() {
 			if fn != "." {
-				dirList = append(dirList, fn)
+				findings.dirList = append(findings.dirList, fn)
 			}
 		} else {
 			modified := fInfo.ModTime()
@@ -189,46 +180,48 @@ func (cfg *Config) ListFiles(ob *strings.Builder, findings *Findings, needsSepar
 			cell2 := fmt.Sprintf("[<%s>%s</%s>]", typeInfo.TypeColor, typeInfo.Description, typeInfo.TypeColor)
 			cell3 := TimeString(ok, modified, "lightyellow", "lightblue", "white")
 			cell4 := sizeDescription
-			printMap[modified] = cell1 + ";" + cell2 + ";" + cell3 + ";" + cell4
-
-			// Project info, to be sent to Ollama
-			pi.WriteString(fn + "\n")
+			findings.printMap[modified] = cell1 + ";" + cell2 + ";" + cell3 + ";" + cell4
+			findings.fileList = append(findings.fileList, fn)
 		}
 	}
+	return nil
+}
 
+func (cfg *Config) ListFiles(ob *strings.Builder, findings *Findings, needsSeparator *bool) error {
 	// List files, if any
-	if l := len(printMap); l > 0 {
+	if l := len(findings.printMap); l > 0 {
+		if *needsSeparator {
+			ob.WriteString("\n")
+			*needsSeparator = false
+		}
 		keys := make([]time.Time, l, l)
 		counter := 0
-		for k := range printMap {
+		for k := range findings.printMap {
 			keys[counter] = k
 			counter++
 		}
 		sort.Slice(keys, func(i, j int) bool {
 			return keys[i].Before(keys[j])
 		})
-		// Print all the files, sorted by modification time
+		// Print out the full line of info for a single file, from the printMap
 		for _, k := range keys {
-			ob.WriteString(printMap[k])
+			ob.WriteString(findings.printMap[k])
 			ob.WriteString("\n")
 		}
-
 		*needsSeparator = true
 	}
-
-	// return a file overview
-	return dirList, pi.String(), nil
+	return nil
 }
 
-func (cfg *Config) ListDirs(ob *strings.Builder, dirList []string, needsSeparator *bool) {
+func (cfg *Config) ListDirs(ob *strings.Builder, findings *Findings, needsSeparator *bool) {
 	// List directories, if any
-	if len(dirList) > 0 {
+	if len(findings.dirList) > 0 {
 		if *needsSeparator {
 			ob.WriteString("\n")
 			*needsSeparator = false
 		}
-		sort.Strings(dirList)
-		for _, dirName := range dirList {
+		sort.Strings(findings.dirList)
+		for _, dirName := range findings.dirList {
 			ob.WriteString(fmt.Sprintf("[<magenta>dir</magenta>] <lightcyan>%s</lightcyan><lightgreen>/</lightgreen>\n", dirName))
 		}
 		*needsSeparator = true
@@ -243,7 +236,7 @@ func (cfg *Config) IgnoredFiles(ob *strings.Builder, findings *Findings, needsSe
 			*needsSeparator = false
 		}
 
-		ob.WriteString(fmt.Sprintf("</white>There %s also %d ignored %s.</white>\n", english.PluralWord(ignoredLen, "is", "are"), ignoredLen, english.PluralWord(ignoredLen, "file", "")))
+		ob.WriteString(fmt.Sprintf("</white>There %s %d ignored %s.</white>\n", english.PluralWord(ignoredLen, "is", "are"), ignoredLen, english.PluralWord(ignoredLen, "file", "")))
 
 		*needsSeparator = true
 	}
@@ -297,7 +290,7 @@ func (cfg *Config) LatestGitCommitThisYear(ob *strings.Builder, findings *Findin
 	return nil
 }
 
-func (cfg *Config) OllamaBuildCommand(ob *strings.Builder, fileOverview string, needsSeparator *bool) error {
+func (cfg *Config) OllamaBuildCommand(ob *strings.Builder, findings *Findings, needsSeparator *bool) error {
 	// Ask Ollama what a sensible build command could be
 	if cfg.ollama {
 		if *needsSeparator {
@@ -310,7 +303,7 @@ func (cfg *Config) OllamaBuildCommand(ob *strings.Builder, fileOverview string, 
 			fmt.Fprintf(os.Stderr, "\nCould not connect to Ollama: %v\n", err)
 			return nil // don't report this as an error on top of this
 		}
-		if result, err := model.GetBuildCommand(fileOverview); err == nil { // success
+		if result, err := model.GetBuildCommand(strings.Join(findings.fileList, "\n")); err == nil { // success
 			ob.WriteString(result + "\n")
 		}
 
@@ -329,26 +322,21 @@ func run(cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("file search failed: %v", err)
 	}
-
-	dirList, fileOverview, err := cfg.ListFiles(&ob, findings, &needsSeparator)
-	if err != nil {
-		return fmt.Errorf("could not list files: %v", err)
+	if err := cfg.AnalyzeFiles(&ob, findings, &needsSeparator); err != nil {
+		return fmt.Errorf("analyzing files failed: %v", err)
 	}
-
-	cfg.ListDirs(&ob, dirList, &needsSeparator)
 
 	cfg.IgnoredFiles(&ob, findings, &needsSeparator)
 
-	if err := cfg.LatestGitCommitThisYear(&ob, findings, &needsSeparator); err != nil {
-		return err
-	}
+	cfg.ListDirs(&ob, findings, &needsSeparator)
 
-	if err := cfg.OllamaBuildCommand(&ob, fileOverview, &needsSeparator); err != nil {
-		return err
-	}
+	cfg.ListFiles(&ob, findings, &needsSeparator)
 
-	o := textoutput.New()
-	o.Print(ob.String())
+	cfg.LatestGitCommitThisYear(&ob, findings, &needsSeparator)
+
+	cfg.OllamaBuildCommand(&ob, findings, &needsSeparator)
+
+	textoutput.New().Print(ob.String())
 
 	return nil
 }

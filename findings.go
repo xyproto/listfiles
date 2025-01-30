@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/iafan/cwalk"
 	"github.com/xyproto/files"
@@ -17,6 +18,9 @@ type Findings struct {
 	regularFiles []string
 	ignoredFiles []string
 	infoMap      map[string]os.FileInfo
+	dirList      []string
+	fileList     []string
+	printMap     map[time.Time]string
 }
 
 func NewFindings() *Findings {
