@@ -27,7 +27,7 @@ func NewModel() (*Model, error) {
 
 func (model *Model) GetBuildCommand(fileOverview string) (string, error) {
 	distroName := distrodetector.New().Name()
-	prompt := fmt.Sprintf("You are an expert %s developer. Which command can the user run to build or compile a project that has the following files:\n\n%s\n\nAnswer with a command that a script can run directly (no commentary), or just say true.", distroName, fileOverview)
+	prompt := fmt.Sprintf("You are an expert %s developer. Which command can the user run to build or compile a project that has the following files:\n\n%s\n\nAnswer with a command that a script can run directly (no commentary), or just say true. The output will be parsed by a script, so only output the command.", distroName, fileOverview)
 	return model.Ask(fileOverview, prompt)
 }
 
