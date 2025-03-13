@@ -1,11 +1,11 @@
-// package mode tries to find the correct editor mode, given a filename and/or file data
+// Package mode tries to find the correct editor mode, given a filename and/or file data
 package mode
 
 // Mode is a per-filetype mode, like for Markdown
 type Mode int
 
 const (
-	Blank          = iota // No file mode found
+	Blank          = iota // Blank is used if no file mode is found
 	ABC                   // ABC music notation
 	AIDL                  // Android-related: Android Interface Definition Language
 	Ada                   // Ada
@@ -36,9 +36,11 @@ const (
 	Email                 // For using o with ie. Mutt
 	Elm                   // Elm
 	Erlang                // Erlang
+	Faust                 // Faust
 	Fortran77             // Fortran 77
 	Fortran90             // Fortran 90
 	FSharp                // F#
+	FSTAB                 // Filesystem table
 	Garnet                // Garnet
 	GDScript              // Godot Script
 	Git                   // Git commits and interactive rebases
@@ -136,7 +138,7 @@ func (mode Mode) String() string {
 	case Basic:
 		return "Basic"
 	case Bat:
-		return "Bat"
+		return "Batch"
 	case Battlestar:
 		return "Battlestar"
 	case Bazel:
@@ -177,12 +179,16 @@ func (mode Mode) String() string {
 		return "E-mail"
 	case Erlang:
 		return "Erlang"
+	case Faust:
+		return "Faust"
 	case Fortran77:
 		return "Fortran 77"
 	case Fortran90:
 		return "Fortran 90"
 	case FSharp:
 		return "F#"
+	case FSTAB:
+		return "Filesystem Table"
 	case Garnet:
 		return "Garnet"
 	case GDScript:

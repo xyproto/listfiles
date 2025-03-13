@@ -20,7 +20,7 @@ func hasS(sl []string, s string) bool {
 func Detect(filename string) Mode {
 	// A list of the most common configuration filenames that does not have an extension
 	var (
-		configFilenames = []string{"BUILD", "WORKSPACE", "config", "environment", "fstab", "group", "gshadow", "hostname", "hosts", "issue", "mirrorlist", "passwd", "shadow"}
+		configFilenames = []string{"BUILD", "WORKSPACE", "config", "environment", "group", "gshadow", "hostname", "hosts", "issue", "mirrorlist", "passwd", "shadow"}
 		mode            Mode
 	)
 
@@ -43,6 +43,8 @@ func Detect(filename string) Mode {
 		mode = Ollama
 	case baseFilename == "svn-commit.tmp":
 		mode = Subversion
+	case baseFilename == "fstab":
+		mode = FSTAB
 	case ext == ".vimrc" || ext == ".vim" || ext == ".nvim":
 		mode = Vim
 	case ext == ".mk" || strings.HasPrefix(baseFilename, "Make") || strings.HasPrefix(baseFilename, "makefile") || baseFilename == "GNUmakefile":
@@ -51,7 +53,7 @@ func Detect(filename string) Mode {
 	case ext == ".just" || ext == ".justfile" || baseFilename == "justfile":
 		// NOTE: This one MUST come before the ext == "" check below!
 		mode = Just
-	case strings.HasSuffix(filename, ".git/config") || ext == ".cfg" || ext == ".conf" || ext == ".service" || ext == ".target" || ext == ".socket" || ext == ".godot" || ext == ".import" || strings.HasPrefix(ext, "rc"):
+	case strings.HasSuffix(filename, ".git/config") || ext == ".cfg" || ext == ".conf" || ext == ".service" || ext == ".target" || ext == ".socket" || ext == ".godot" || ext == ".import" || ext == ".tres" || strings.HasPrefix(ext, "rc"):
 		fallthrough
 	case ext == ".yml" || ext == ".toml" || ext == ".bp" || ext == ".rule" || strings.HasSuffix(filename, ".git/config") || (ext == "" && (strings.HasSuffix(baseFilename, "file") || strings.HasSuffix(baseFilename, "rc") || hasS(configFilenames, baseFilename))):
 		mode = Config
@@ -131,6 +133,8 @@ func Detect(filename string) Mode {
 			mode = Email
 		case ".erl":
 			mode = Erlang
+		case ".dsp":
+			mode = Faust
 		case ".f":
 			mode = Fortran77
 		case ".f90":
