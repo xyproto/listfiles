@@ -1,6 +1,6 @@
-.PHONY: all clean install uninstall pal
+.PHONY: all clean install uninstall listfiles
 
-BINARY := pal
+BINARY := listfiles
 
 UNAME_S := $(shell uname -s)
 
